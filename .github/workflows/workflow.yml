@@ -1,0 +1,33 @@
+name: Deploy Argo CD
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'infrastructures/argo-cd/**'
+      - '.github/workflows/workflow.yml'
+
+jobs:
+  deploy-argocd:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: instrumenta/kubeval-action@master
+      with:
+        files: ./infrastructures/argo-cd/
+
+    - uses: Azure/aks-set-context@v1
+      with:
+        creds: '${{ secrets.AZURE_CREDENTIALS }}'
+        cluster-name: '${{ secrets.AKS_CLUSTER_NAME }}'
+        resource-group: '${{ secrets.AKS_RESOURCE_GROUP }}'
+
+    - run: |
+        kubectl create namespace argocd --dry-run -o json | kubectl apply -f -
+
+    - uses: Azure/k8s-deploy@v1
+      with:
+        manifests: |
+          infrastructures/argo-cd/install.yaml
+        namespace: argocd
